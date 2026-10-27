@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minion CPU Arena — RR (Round Robin Scheduling) Results Table</title>
+    <style>
+        :root {
+            --bg-porcelain: #F4F0E8;
+            --bg-card: #FFFCF7;
+            --bg-secondary: #E6D7C9;
+            --primary-accent: #C76543;
+            --heading-plum: #563C50;
+            --text-charcoal: #30343A;
+            --border-taupe: #D8CCC0;
+            --text-muted: #8A7E72;
+            --text-dim: #A89F95;
+            --shadow-subtle: 0 2px 8px rgba(86, 60, 80, 0.06);
+            --shadow-card: 0 4px 16px rgba(86, 60, 80, 0.08);
+            --shadow-float: 0 8px 24px rgba(86, 60, 80, 0.12);
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-porcelain);
+            color: var(--text-charcoal);
+            line-height: 1.5;
+            padding: 24px 20px 80px;
+            min-height: 100vh;
+        }
+
+        .results-container {
+            max-width: 1140px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Top Bar */
+        .results-top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--border-taupe);
+        }
+
+        .btn-3d {
+            font-family: inherit;
+            font-size: 0.88rem;
+            font-weight: 700;
+            padding: 9px 18px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.1s ease-in-out;
+            user-select: none;
+            text-decoration: none;
+            border: 1px solid transparent;
+        }
+
+        .btn-terracotta {
+            background: linear-gradient(180deg, #D47553 0%, var(--primary-accent) 100%);
+            color: #FFFFFF;
+            border: 1px solid #B05536;
+            box-shadow: 0 4px 0 #924025, 0 5px 8px rgba(146, 64, 37, 0.25);
+        }
+        .btn-terracotta:hover {
+            background: linear-gradient(180deg, #DE805E 0%, #CE6C4A 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 5px 0 #924025, 0 7px 12px rgba(146, 64, 37, 0.3);
+        }
+        .btn-terracotta:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #924025, 0 2px 4px rgba(146, 64, 37, 0.2);
+        }
+
+        .results-heading-group h1 {
+            font-size: 1.45rem;
+            font-weight: 800;
+            color: var(--heading-plum);
+            letter-spacing: -0.3px;
+        }
+
+        .results-heading-group p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* Empty State */
+        .results-empty-state-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-taupe);
+            border-radius: var(--radius-lg);
+            padding: 44px 28px;
+            text-align: center;
+            box-shadow: var(--shadow-card);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+        .results-empty-state-card .empty-icon {
+            font-size: 3.2rem;
+        }
+        .results-empty-state-card h2 {
+            font-size: 1.25rem;
+            color: var(--heading-plum);
+            font-weight: 800;
+        }
+        .results-empty-state-card p {
+            color: var(--text-muted);
+            max-width: 560px;
+            font-size: 0.92rem;
+            line-height: 1.6;
+        }
+
+        /* KPI Row */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 14px;
+        }
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-taupe);
+            border-radius: var(--radius-md);
+            padding: 16px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            box-shadow: var(--shadow-subtle);
+            border-top: 3px solid var(--primary-accent);
+        }
+        .kpi-card.cyan { border-top-color: #2563EB; }
+        .kpi-card.yellow { border-top-color: #D97706; }
+        .kpi-card.green { border-top-color: #2E7D5B; }
+        .kpi-card.purple { border-top-color: var(--heading-plum); }
+
+        .kpi-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+        .kpi-value {
+            font-family: 'Consolas', monospace;
+            font-size: 1.65rem;
+            font-weight: 800;
+            color: var(--heading-plum);
+        }
+        .kpi-formula {
+            font-size: 0.73rem;
+            color: var(--text-dim);
+            font-weight: 600;
+        }
+
+        /* Table Card */
+        .results-table-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-taupe);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-card);
+        }
+        .results-table-header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-taupe);
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .results-table-header h2 {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: var(--heading-plum);
+        }
+        .quantum-badge {
+            font-size: 0.78rem;
+            font-weight: 700;
+            background: rgba(199, 101, 67, 0.12);
+            color: var(--primary-accent);
+            border: 1px solid rgba(199, 101, 67, 0.3);
+            padding: 3px 12px;
+            border-radius: 14px;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+        table.dedicated-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.92rem;
+            text-align: left;
+        }
+        table.dedicated-table th {
+            background: var(--bg-secondary);
+            color: var(--heading-plum);
+            font-size: 0.8rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 12px 18px;
+            border-bottom: 2px solid var(--border-taupe);
+        }
+        table.dedicated-table td {
+            padding: 12px 18px;
+            border-bottom: 1px solid var(--border-taupe);
+            color: var(--text-charcoal);
+        }
+        table.dedicated-table tbody tr:nth-child(even) {
+            background: rgba(230, 215, 201, 0.22);
+        }
+        table.dedicated-table tbody tr:hover {
+            background: rgba(199, 101, 67, 0.08);
+        }
+
+        .pid-pill {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-weight: 800;
+            font-family: 'Consolas', monospace;
+            font-size: 0.84rem;
+            color: #FFFFFF;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Averages Highlights */
+        .averages-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 16px;
+        }
+        .avg-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-taupe);
+            border-radius: var(--radius-md);
+            padding: 18px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: var(--shadow-subtle);
+        }
+        .avg-card.tat { border-left: 5px solid #2563EB; }
+        .avg-card.wt { border-left: 5px solid #D97706; }
+
+        .avg-icon {
+            font-size: 2.2rem;
+        }
+        .avg-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .avg-title {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+        .avg-val {
+            font-family: 'Consolas', monospace;
+            font-size: 1.7rem;
+            font-weight: 800;
+            color: var(--heading-plum);
+        }
+        .avg-val .unit {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            font-family: inherit;
+        }
+        .avg-calc-detail {
+            font-family: 'Consolas', monospace;
+            font-size: 0.78rem;
+            color: var(--primary-accent);
+            font-weight: 700;
+        }
+
+        /* Formulas Section */
+        .formulas-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-taupe);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            box-shadow: var(--shadow-card);
+        }
+        .formulas-header {
+            margin-bottom: 20px;
+        }
+        .formulas-header h2 {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: var(--heading-plum);
+        }
+        .formulas-header p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        .formula-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+            gap: 14px;
+        }
+        .formula-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-taupe);
+            border-radius: var(--radius-sm);
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .formula-badge {
+            align-self: flex-start;
+            font-size: 0.68rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: rgba(86, 60, 80, 0.1);
+            color: var(--heading-plum);
+        }
+        .formula-item h3 {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: var(--heading-plum);
+        }
+        .formula-expr {
+            font-family: 'Consolas', monospace;
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--primary-accent);
+            background: rgba(199, 101, 67, 0.08);
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        .formula-desc {
+            font-size: 0.83rem;
+            color: var(--text-charcoal);
+            line-height: 1.5;
+        }
+
+        /* Clickable Minion Mascot (Bottom-Left) */
+        .minion-mascot-widget {
+            position: fixed;
+            bottom: 24px;
+            left: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            z-index: 1000;
+            user-select: none;
+        }
+        .mascot-bubble {
+            background: var(--bg-card);
+            border: 1px solid var(--border-taupe);
+            color: var(--heading-plum);
+            font-size: 0.78rem;
+            font-weight: 700;
+            padding: 7px 12px;
+            border-radius: 16px;
+            box-shadow: var(--shadow-float);
+        }
+        .mascot-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #F4D03F;
+            border: 2.5px solid var(--heading-plum);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 14px rgba(86, 60, 80, 0.2);
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .minion-mascot-widget:hover .mascot-avatar {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        /* Slide-out Theory Panel */
+        .theory-slideout {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 440px;
+            max-width: 92vw;
+            background: var(--bg-card);
+            border-top: 3px solid var(--primary-accent);
+            border-right: 1px solid var(--border-taupe);
+            border-radius: 0 var(--radius-lg) 0 0;
+            box-shadow: var(--shadow-float);
+            transform: translateY(105%);
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 1001;
+            display: flex;
+            flex-direction: column;
+        }
+        .theory-slideout.open {
+            transform: translateY(0);
+        }
+        .slideout-header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-taupe);
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .slideout-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .slideout-brand h3 {
+            font-size: 0.98rem;
+            font-weight: 800;
+            color: var(--heading-plum);
+        }
+        .btn-close-slideout {
+            background: transparent;
+            border: 1px solid var(--border-taupe);
+            color: var(--text-muted);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-close-slideout:hover {
+            color: var(--primary-accent);
+            border-color: var(--primary-accent);
+        }
+        .slideout-body {
+            padding: 18px 20px;
+            font-size: 0.88rem;
+            line-height: 1.7;
+            color: var(--text-charcoal);
+        }
+        .slideout-footer {
+            padding: 12px 20px;
+            border-top: 1px solid var(--border-taupe);
+            display: flex;
+            justify-content: flex-end;
+            background: var(--bg-secondary);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="results-container">
+        <!-- Top Bar Navigation -->
+        <div class="results-top-bar">
+            <a href="index.html" class="btn-3d btn-terracotta">
+                ← Back to Simulator
+            </a>
+            <div class="results-heading-group">
+                <h1 id="pageTitle">CPU Arena Mascot — Scheduling Results Table</h1>
+                <p id="pageSubtitle">Verified Simulation Metrics, Process Turnaround, Waiting Times, and Performance Analytics</p>
+            </div>
+        </div>
+
+        <!-- Empty State (when no simulation results exist in localStorage) -->
+        <div class="results-empty-state-card" id="emptyState" style="display: none;">
+            <div class="empty-icon">⏳</div>
+            <h2>No Simulation Results Available Yet</h2>
+            <p>
+                The scheduler has not executed or is currently in standby. Run or step through the simulation in the arena first to generate accurate Completion Time (CT), Turnaround Time (TAT), and Waiting Time (WT) data for all processes.
+            </p>
+            <a href="index.html" class="btn-3d btn-terracotta">
+                ▶ Go to Simulator & Run
+            </a>
+        </div>
+
+        <!-- Dynamic Results Content -->
+        <div id="contentWrap" style="display: flex; flex-direction: column; gap: 24px;">
+            <!-- KPI Summary Cards -->
+            <div class="kpi-row">
+                <div class="kpi-card cyan">
+                    <span class="kpi-label">Average Turnaround Time</span>
+                    <span class="kpi-value" id="kpiAvgTat">0.00</span>
+                    <span class="kpi-formula">Avg TAT = Σ TAT / N</span>
+                </div>
+                <div class="kpi-card yellow">
+                    <span class="kpi-label">Average Waiting Time</span>
+                    <span class="kpi-value" id="kpiAvgWt">0.00</span>
+                    <span class="kpi-formula">Avg WT = Σ WT / N</span>
+                </div>
+                <div class="kpi-card green">
+                    <span class="kpi-label">CPU Utilization</span>
+                    <span class="kpi-value" id="kpiCpuUtil">0.0%</span>
+                    <span class="kpi-formula">(Busy Time / Total Elapsed) × 100%</span>
+                </div>
+                <div class="kpi-card purple">
+                    <span class="kpi-label" id="kpiFourthLabel">Total Elapsed Time</span>
+                    <span class="kpi-value" id="kpiTotalTime">0s</span>
+                    <span class="kpi-formula" id="kpiFourthFormula">Time Quantum q = <span id="kpiQuantum">2</span></span>
+                </div>
+            </div>
+
+            <!-- Exact 6-Column Results Table -->
+            <div class="results-table-card">
+                <div class="results-table-header">
+                    <h2 id="tableTitle">📋 Process Results Table</h2>
+                    <span class="quantum-badge" id="lblQuantumBadge">Time Quantum (q) = 2</span>
+                </div>
+                <div class="table-wrap">
+                    <table class="dedicated-table">
+                        <thead>
+                            <tr>
+                                <th>Process ID (PID)</th>
+                                <th>Arrival Time (AT)</th>
+                                <th>Burst Time (BT)</th>
+                                <th>Completion Time (CT)</th>
+                                <th>Turnaround Time (TAT)</th>
+                                <th>Waiting Time (WT)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Averages Highlight Cards -->
+            <div class="averages-grid">
+                <div class="avg-card tat">
+                    <div class="avg-icon">⏱</div>
+                    <div class="avg-info">
+                        <span class="avg-title">Average Turnaround Time (TAT)</span>
+                        <div class="avg-val" id="avgTatDisplay">0.00 <span class="unit">time units</span></div>
+                        <span class="avg-calc-detail" id="avgTatFormula">Sum of Turnaround Times divided by total processes</span>
+                    </div>
+                </div>
+                <div class="avg-card wt">
+                    <div class="avg-icon">⏳</div>
+                    <div class="avg-info">
+                        <span class="avg-title">Average Waiting Time (WT)</span>
+                        <div class="avg-val" id="avgWtDisplay">0.00 <span class="unit">time units</span></div>
+                        <span class="avg-calc-detail" id="avgWtFormula">Sum of Waiting Times divided by total processes</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulas Used for Calculation Section -->
+            <div class="formulas-card">
+                <div class="formulas-header">
+                    <h2>📐 Formulas Used for Calculation</h2>
+                    <p>Standard Operating Systems mathematical definitions and metrics for Round Robin (RR) scheduling</p>
+                </div>
+                <div class="formula-grid">
+                    <div class="formula-item">
+                        <span class="formula-badge">Timestamp</span>
+                        <h3>Completion Time (CT)</h3>
+                        <div class="formula-expr">t = CT</div>
+                        <p class="formula-desc">
+                            The exact simulation clock timestamp at which a process finishes its final remaining CPU burst instruction and departs from the scheduling arena.
+                        </p>
+                    </div>
+
+                    <div class="formula-item">
+                        <span class="formula-badge">Duration</span>
+                        <h3>Turnaround Time (TAT)</h3>
+                        <div class="formula-expr">TAT = CT − AT</div>
+                        <p class="formula-desc">
+                            The total lifespan elapsed from the exact moment the process enters the system (Arrival Time, AT) until its final instruction completes (Completion Time, CT).
+                        </p>
+                    </div>
+
+                    <div class="formula-item">
+                        <span class="formula-badge">Duration</span>
+                        <h3>Waiting Time (WT)</h3>
+                        <div class="formula-expr">WT = TAT − BT = CT − AT − BT</div>
+                        <p class="formula-desc">
+                            The total amount of time a process spends waiting in the Ready Queue for CPU execution. Derived by subtracting actual CPU processing time (Burst Time, BT) from total turnaround lifespan.
+                        </p>
+                    </div>
+
+                    <div class="formula-item">
+                        <span class="formula-badge">Aggregate Metric</span>
+                        <h3>Average Turnaround Time</h3>
+                        <div class="formula-expr">Average TAT = (Σ TAT) / N</div>
+                        <p class="formula-desc">
+                            The arithmetic mean turnaround time across all <em>N</em> scheduled processes. Evaluates overall system turnaround efficiency and batch latency.
+                        </p>
+                    </div>
+
+                    <div class="formula-item">
+                        <span class="formula-badge">Aggregate Metric</span>
+                        <h3>Average Waiting Time</h3>
+                        <div class="formula-expr">Average WT = (Σ WT) / N</div>
+                        <p class="formula-desc">
+                            The arithmetic mean waiting time across all <em>N</em> scheduled processes. Reflects how quickly ready tasks gain access to CPU execution without prolonged starvation.
+                        </p>
+                    </div>
+
+                    <div class="formula-item">
+                        <span class="formula-badge">Efficiency Ratio</span>
+                        <h3>CPU Utilization</h3>
+                        <div class="formula-expr">CPU Utilization = (Total Busy Time / Total Elapsed Time) × 100%</div>
+                        <p class="formula-desc">
+                            The percentage of total simulation time that the CPU was actively processing a process burst rather than standing idle awaiting new arrivals.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Minion Mascot Trigger Widget -->
+    <div class="minion-mascot-widget" id="mascotWidget" role="button" tabindex="0" title="Click me for RR Theory!">
+        <div class="mascot-bubble">Click me for RR Theory!</div>
+        <div class="mascot-avatar">
+            <svg viewBox="0 0 80 80" width="38" height="38">
+                <circle cx="40" cy="40" r="36" fill="#F4D03F" stroke="#563C50" stroke-width="2.5"/>
+                <rect x="4" y="32" width="72" height="9" fill="#30343A" rx="2"/>
+                <circle cx="40" cy="36.5" r="17" fill="#E6D7C9" stroke="#563C50" stroke-width="3"/>
+                <circle cx="40" cy="36.5" r="12" fill="#FFFFFF"/>
+                <circle cx="40" cy="36.5" r="5.5" fill="#78350F"/>
+                <circle cx="40" cy="36.5" r="3" fill="#000000"/>
+                <circle cx="38" cy="34.5" r="1.5" fill="#FFFFFF"/>
+                <path d="M 27 57 Q 40 68 53 57" stroke="#563C50" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Minion Theory Slide-out Panel -->
+    <div class="theory-slideout" id="theorySlideout" aria-hidden="true">
+        <div class="slideout-header">
+            <div class="slideout-brand">
+                <h3>RR — Round Robin Scheduling</h3>
+            </div>
+            <button class="btn-close-slideout" id="btnCloseSlideout">✕</button>
+        </div>
+        <div class="slideout-body">
+            <p>Round Robin (RR) is a preemptive CPU scheduling algorithm in which each process gets the CPU for a fixed amount of time called the time quantum. The processes are maintained in a ready queue and are executed one after another in circular order. If a process finishes within its time quantum, it moves to the completed state; otherwise, it is preempted and placed at the end of the ready queue to wait for its next turn. Round Robin provides fair CPU access and good responsiveness, especially in time-sharing systems. However, a very small time quantum can cause excessive context switching, while a very large time quantum makes the algorithm behave more like First Come, First Served scheduling.</p>
+        </div>
+        <div class="slideout-footer">
+            <button class="btn-3d btn-terracotta" id="btnDismissSlideout" style="font-size: 0.8rem; padding: 6px 14px;">
+                Got it!
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Algorithm definitions for results rendering
+        const ALGO_RESULTS_META = {
+            fcfs: {
+                name: 'First Come, First Served',
+                abbrev: 'FCFS',
+                type: 'Non-preemptive',
+                isPreemptive: false,
+                theory: 'First Come, First Served (FCFS) is a non-preemptive CPU scheduling algorithm in which processes are executed in the order they arrive in the ready queue. Once a process gets the CPU, it continues until it finishes. FCFS is simple and easy to implement, but a long process can make shorter processes wait for a long time. This problem is called the convoy effect.'
+            },
+            sjf: {
+                name: 'Shortest Job First',
+                abbrev: 'SJF',
+                type: 'Non-preemptive',
+                isPreemptive: false,
+                theory: 'Shortest Job First (SJF) is a non-preemptive CPU scheduling algorithm that selects the available process with the smallest burst time whenever the CPU becomes free. The selected process runs until completion. SJF can reduce average waiting time when burst times are known, but long processes may wait for a long time. It may also be difficult to predict exact burst times in real systems.'
+            },
+            srtf: {
+                name: 'Shortest Remaining Time First',
+                abbrev: 'SRTF',
+                type: 'Preemptive',
+                isPreemptive: true,
+                theory: 'Shortest Remaining Time First (SRTF) is a preemptive CPU scheduling algorithm in which the process with the smallest remaining execution time gets the CPU. If a new process arrives with a shorter remaining time than the running process, the CPU switches to the new process. SRTF can reduce average waiting time, but it requires frequent scheduling decisions and may cause long processes to starve.'
+            },
+            rr: {
+                name: 'Round Robin',
+                abbrev: 'RR',
+                type: 'Preemptive',
+                isPreemptive: true,
+                theory: 'Round Robin (RR) is a preemptive CPU scheduling algorithm in which each process gets the CPU for a fixed amount of time called the time quantum. The processes are maintained in a ready queue and are executed one after another in circular order. If a process finishes within its time quantum, it moves to the completed state; otherwise, it is preempted and placed at the end of the ready queue to wait for its next turn. Round Robin provides fair CPU access and good responsiveness, especially in time-sharing systems. However, a very small time quantum can cause excessive context switching, while a very large time quantum makes the algorithm behave more like First Come, First Served scheduling.'
+            }
+        };
+
+        // Data loader from localStorage
+        function loadResultsData() {
+            let data = null;
+            try {
+                const stored = localStorage.getItem('minion_arena_rr_results');
+                if (stored) {
+                    data = JSON.parse(stored);
+                }
+            } catch (e) {}
+
+            const emptyState = document.getElementById('emptyState');
+            const contentWrap = document.getElementById('contentWrap');
+
+            if (!data || !data.processes || data.processes.length === 0 || (data.currentTime === 0 && !data.isFinished)) {
+                emptyState.style.display = 'flex';
+                contentWrap.style.display = 'none';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            contentWrap.style.display = 'flex';
+
+            const algoKey = (data.algorithm || 'rr').toLowerCase();
+            const algoMeta = ALGO_RESULTS_META[algoKey] || ALGO_RESULTS_META.rr;
+            const isRR = (algoKey === 'rr');
+
+            // Update Titles and Badges
+            document.getElementById('pageTitle').textContent = `CPU Arena Mascot — ${algoMeta.abbrev} (${algoMeta.name}) Results`;
+            document.getElementById('tableTitle').textContent = `📋 ${algoMeta.name} (${algoMeta.abbrev}) Results Table`;
+            
+            if (isRR) {
+                document.getElementById('lblQuantumBadge').textContent = `Time Quantum (q) = ${data.quantum || 2}`;
+                document.getElementById('kpiFourthLabel').textContent = "Total Elapsed Time";
+                document.getElementById('kpiFourthFormula').innerHTML = `Time Quantum q = <span id="kpiQuantum">${data.quantum || 2}</span>`;
+            } else {
+                document.getElementById('lblQuantumBadge').textContent = `Algorithm: ${algoMeta.name} (${algoMeta.type})`;
+                document.getElementById('kpiFourthLabel').textContent = "Scheduling Type";
+                document.getElementById('kpiFourthFormula').textContent = `${algoMeta.type} Execution`;
+            }
+
+            // Update Theory slide-out text
+            const theoryTitleEl = document.querySelector('#theorySlideout .slideout-brand h3');
+            const theoryBodyEl = document.querySelector('#theorySlideout .slideout-body p');
+            if (theoryTitleEl) theoryTitleEl.textContent = `${algoMeta.abbrev} — ${algoMeta.name} Scheduling`;
+            if (theoryBodyEl) theoryBodyEl.textContent = algoMeta.theory;
+
+            // Update KPI cards
+            document.getElementById('kpiAvgTat').textContent = data.avgTat || "0.00";
+            document.getElementById('kpiAvgWt').textContent = data.avgWt || "0.00";
+            document.getElementById('kpiCpuUtil').textContent = data.cpuUtil || "0.0%";
+            document.getElementById('kpiTotalTime').textContent = (data.currentTime || 0) + "s";
+            if (isRR && document.getElementById('kpiQuantum')) {
+                document.getElementById('kpiQuantum').textContent = data.quantum || 2;
+            }
+
+            // Populate Table
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            const completed = data.processes.filter(p => p.completionTime >= 0);
+            const tatVals = [];
+            const wtVals = [];
+
+            data.processes.forEach(p => {
+                const tr = document.createElement('tr');
+                const ctStr = p.completionTime >= 0 ? `<strong>${p.completionTime}</strong>` : '<span style="color:var(--text-muted)">--</span>';
+                const tatStr = p.turnaroundTime >= 0 ? `<strong>${p.turnaroundTime}</strong>` : '<span style="color:var(--text-muted)">--</span>';
+                const wtStr = p.waitingTime >= 0 ? `<strong>${p.waitingTime}</strong>` : '<span style="color:var(--text-muted)">--</span>';
+
+                if (p.turnaroundTime >= 0) tatVals.push(p.turnaroundTime);
+                if (p.waitingTime >= 0) wtVals.push(p.waitingTime);
+
+                tr.innerHTML = `
+                    <td><span class="pid-pill" style="background-color: ${p.themeColor || '#2563EB'};">${p.id}</span></td>
+                    <td>${p.arrivalTime}</td>
+                    <td>${p.burstTime}</td>
+                    <td>${ctStr}</td>
+                    <td>${tatStr}</td>
+                    <td>${wtStr}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Update Averages Highlights
+            document.getElementById('avgTatDisplay').innerHTML = `${data.avgTat} <span class="unit">time units</span>`;
+            document.getElementById('avgWtDisplay').innerHTML = `${data.avgWt} <span class="unit">time units</span>`;
+
+            if (completed.length > 0) {
+                document.getElementById('avgTatFormula').textContent = `(${tatVals.join(' + ')}) / ${completed.length} = ${data.avgTat}`;
+                document.getElementById('avgWtFormula').textContent = `(${wtVals.join(' + ')}) / ${completed.length} = ${data.avgWt}`;
+            }
+        }
+
+        // Mascot Theory Slideout Toggle
+        const mascot = document.getElementById('mascotWidget');
+        const slideout = document.getElementById('theorySlideout');
+        const btnClose = document.getElementById('btnCloseSlideout');
+        const btnDismiss = document.getElementById('btnDismissSlideout');
+
+        function toggleSlideout(open) {
+            if (open) {
+                slideout.classList.add('open');
+                slideout.setAttribute('aria-hidden', 'false');
+            } else {
+                slideout.classList.remove('open');
+                slideout.setAttribute('aria-hidden', 'true');
+            }
+        }
+
+        mascot.addEventListener('click', () => toggleSlideout(true));
+        btnClose.addEventListener('click', () => toggleSlideout(false));
+        btnDismiss.addEventListener('click', () => toggleSlideout(false));
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') toggleSlideout(false);
+        });
+
+        window.addEventListener('DOMContentLoaded', loadResultsData);
+    </script>
+</body>
+</html>
